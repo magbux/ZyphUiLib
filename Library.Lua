@@ -1,61 +1,27 @@
---[[ 
-    ZYPH UI LIBRARY v1.0
-    "Better than Voidware"
-    
-    Features:
-    - Draggable Modern Window
-    - Real-time Search Bar per Tab
-    - Smooth Tween Animations
-    - Dropdowns, Sliders, Color Pickers, Toggles
-]]
-
 local Zyph = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
 
---// THEME SETTINGS //--
 local Theme = {
     Background = Color3.fromRGB(20, 20, 25),
     Section = Color3.fromRGB(30, 30, 35),
-    Accent = Color3.fromRGB(115, 80, 255), -- Zyph Purple
+    Accent = Color3.fromRGB(115, 80, 255),
     Text = Color3.fromRGB(230, 230, 230),
     TextDark = Color3.fromRGB(150, 150, 150),
     Outline = Color3.fromRGB(50, 50, 60)
 }
 
---// UTILITY FUNCTIONS //--
-local function MakeDraggable(frame, dragHandle)
-    local dragging, dragInput, dragStart, startPos
-    
-    dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
+local function GetParent()
+    local success, result = pcall(function()
+        return CoreGui
     end)
-    
-    dragHandle.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            TweenService:Create(frame, TweenInfo.new(0.1), {Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)}):Play()
-        end
-    end)
+    if not success then
+        return Players.LocalPlayer:WaitForChild("PlayerGui")
+    end
+    return result
 end
 
 local function Create(instance, properties, children)
@@ -69,12 +35,10 @@ local function Create(instance, properties, children)
     return obj
 end
 
---// LIBRARY START //--
-
 function Zyph:CreateWindow(name)
     local ScreenGui = Create("ScreenGui", {
         Name = "ZyphUI",
-        Parent = RunService:IsStudio() and Players.LocalPlayer:WaitForChild("PlayerGui") or CoreGui,
+        Parent = GetParent(),
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     })
@@ -112,7 +76,33 @@ function Zyph:CreateWindow(name)
         })
     })
 
-    MakeDraggable(MainFrame, TopBar)
+    local dragging, dragInput, dragStart, startPos
+    TopBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+        end
+    end)
+    
+    TopBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            TweenService:Create(MainFrame, TweenInfo.new(0.05), {Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)}):Play()
+        end
+    end)
 
     local TabContainer = Create("ScrollingFrame", {
         Name = "TabContainer",
@@ -138,14 +128,11 @@ function Zyph:CreateWindow(name)
 
     local Tabs = {}
     local FirstTab = true
-
-    -- Window Functions
     local Window = {}
 
     function Window:Tab(tabName)
         local Tab = {}
         
-        -- Tab Button
         local TabBtn = Create("TextButton", {
             Name = tabName,
             Parent = TabContainer,
@@ -160,7 +147,6 @@ function Zyph:CreateWindow(name)
             Create("UICorner", {CornerRadius = UDim.new(0, 4)})
         })
 
-        -- Tab Content Frame
         local TabFrame = Create("ScrollingFrame", {
             Name = tabName .. "Frame",
             Parent = ContentContainer,
@@ -184,11 +170,10 @@ function Zyph:CreateWindow(name)
             })
         })
 
-        -- Search Bar (Inside Content Area)
         local SearchFrame = Create("Frame", {
             Name = "SearchFrame",
             Parent = TabFrame,
-            LayoutOrder = -1, -- Always at top
+            LayoutOrder = -1,
             BackgroundColor3 = Theme.Background,
             Size = UDim2.new(1, 0, 0, 30)
         }, {
@@ -219,7 +204,6 @@ function Zyph:CreateWindow(name)
             TextXAlignment = Enum.TextXAlignment.Left
         })
 
-        -- Logic to Switch Tabs
         TabBtn.MouseButton1Click:Connect(function()
             for _, v in pairs(ContentContainer:GetChildren()) do
                 if v:IsA("ScrollingFrame") then v.Visible = false end
@@ -241,14 +225,12 @@ function Zyph:CreateWindow(name)
             TabFrame.Visible = true
         end
         
-        -- Resize Canvas Function
         local function UpdateCanvas()
             local layout = TabFrame:FindFirstChild("UIListLayout")
             TabFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 20)
         end
         TabFrame.ChildAdded:Connect(UpdateCanvas)
         
-        -- Search Logic
         SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
             local query = SearchBox.Text:lower()
             for _, item in pairs(TabFrame:GetChildren()) do
@@ -265,8 +247,6 @@ function Zyph:CreateWindow(name)
             end
             UpdateCanvas()
         end)
-
-        --// COMPONENTS //--
 
         function Tab:Label(text)
             local LabelFrame = Create("Frame", {
@@ -301,7 +281,7 @@ function Zyph:CreateWindow(name)
             })
             
             local Btn = Create("TextButton", {
-                Name = "Title", -- Naming it Title for Search
+                Name = "Title",
                 Parent = BtnFrame,
                 Text = text,
                 BackgroundTransparency = 1,
@@ -512,7 +492,7 @@ function Zyph:CreateWindow(name)
                 end)
             end
         end
-        
+
         function Tab:ColorPicker(text, default, callback)
             local ColorVal = default or Color3.fromRGB(255, 255, 255)
             local Picking = false
@@ -521,7 +501,8 @@ function Zyph:CreateWindow(name)
                 Name = "ColorPicker",
                 Parent = TabFrame,
                 BackgroundColor3 = Theme.Background,
-                Size = UDim2.new(1, 0, 0, 32)
+                Size = UDim2.new(1, 0, 0, 32),
+                ClipsDescendants = true
             }, {
                 Create("UICorner", {CornerRadius = UDim.new(0, 4)}),
                 Create("UIStroke", {Color = Theme.Outline, Thickness = 1}),
@@ -533,7 +514,7 @@ function Zyph:CreateWindow(name)
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(1, -50, 1, 0),
+                    Size = UDim2.new(1, -50, 0, 32),
                     Position = UDim2.new(0, 10, 0, 0),
                     TextXAlignment = Enum.TextXAlignment.Left
                 })
@@ -543,27 +524,84 @@ function Zyph:CreateWindow(name)
                 Parent = ColorFrame,
                 BackgroundColor3 = ColorVal,
                 Size = UDim2.new(0, 22, 0, 22),
-                Position = UDim2.new(1, -32, 0.5, -11),
+                Position = UDim2.new(1, -32, 0, 5),
                 Text = "",
                 AutoButtonColor = false
             }, {
                 Create("UICorner", {CornerRadius = UDim.new(0, 4)})
             })
+
+            local function UpdateColor()
+                pcall(callback, ColorVal)
+            end
             
-            -- Basic logic to just cycle random colors for demonstration (full HSV picker is huge code)
-            -- For a real robust picker, you'd need an image map. This is a simplified "Click to Randomize" or "Input RGB" 
-            -- But since you asked for a picker, I will add a simple RGB input popup.
+            local RVal, GVal, BVal = ColorVal.R * 255, ColorVal.G * 255, ColorVal.B * 255
+            
+            local SlidersFrame = Create("Frame", {
+                Parent = ColorFrame,
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 0, 0, 35),
+                Size = UDim2.new(1, 0, 0, 100)
+            })
+            
+            local function CreateColorSlider(yPos, colorType)
+                local SFrame = Create("Frame", {
+                    Parent = SlidersFrame,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -20, 0, 20),
+                    Position = UDim2.new(0, 10, 0, yPos)
+                })
+                
+                local Bar = Create("Frame", {
+                    Parent = SFrame,
+                    BackgroundColor3 = Color3.fromRGB(40,40,40),
+                    Size = UDim2.new(1, 0, 0, 4),
+                    Position = UDim2.new(0, 0, 0.5, -2)
+                }, { Create("UICorner", {CornerRadius = UDim.new(0, 2)}) })
+                
+                local Fill = Create("Frame", {
+                    Parent = Bar,
+                    BackgroundColor3 = colorType == "R" and Color3.fromRGB(255,50,50) or colorType == "G" and Color3.fromRGB(50,255,50) or Color3.fromRGB(50,50,255),
+                    Size = UDim2.new(0, 0, 1, 0)
+                })
+
+                local InitVal = colorType == "R" and RVal or colorType == "G" and GVal or BVal
+                Fill.Size = UDim2.new(InitVal/255, 0, 1, 0)
+                
+                local Trig = Create("TextButton", {
+                    Parent = SFrame,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Text = ""
+                })
+                
+                local draggingS = false
+                Trig.MouseButton1Down:Connect(function() draggingS = true end)
+                UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingS = false end end)
+                
+                UserInputService.InputChanged:Connect(function(i)
+                    if draggingS and i.UserInputType == Enum.UserInputType.MouseMovement then
+                        local scale = math.clamp((i.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+                        Fill.Size = UDim2.new(scale, 0, 1, 0)
+                        local val = math.floor(scale * 255)
+                        if colorType == "R" then RVal = val elseif colorType == "G" then GVal = val else BVal = val end
+                        ColorVal = Color3.fromRGB(RVal, GVal, BVal)
+                        ColorPreview.BackgroundColor3 = ColorVal
+                        UpdateColor()
+                    end
+                end)
+            end
+            
+            CreateColorSlider(0, "R")
+            CreateColorSlider(25, "G")
+            CreateColorSlider(50, "B")
             
             ColorPreview.MouseButton1Click:Connect(function()
                 Picking = not Picking
                 if Picking then
-                     -- Simple RGB cycle as placeholder for full picker logic in concise code
-                    local r = math.random(0,255)
-                    local g = math.random(0,255)
-                    local b = math.random(0,255)
-                    local newCol = Color3.fromRGB(r,g,b)
-                    ColorPreview.BackgroundColor3 = newCol
-                    pcall(callback, newCol)
+                    TweenService:Create(ColorFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 120)}):Play()
+                else
+                    TweenService:Create(ColorFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 32)}):Play()
                 end
             end)
         end
