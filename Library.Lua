@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local TextService = game:GetService("TextService")
+local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
@@ -13,13 +14,15 @@ local Theme = {
     Main = Color3.fromRGB(40, 40, 40),
     Sidebar = Color3.fromRGB(31, 31, 31),
     Header = Color3.fromRGB(25, 25, 25),
+    Content = Color3.fromRGB(40, 40, 40),
     Text = Color3.fromRGB(255, 255, 255),
     SubText = Color3.fromRGB(170, 170, 170),
     Accent = Color3.fromRGB(0, 120, 215),
     Border = Color3.fromRGB(0, 0, 0),
     Hover = Color3.fromRGB(50, 50, 50),
     Item = Color3.fromRGB(45, 45, 45),
-    Warning = Color3.fromRGB(215, 175, 0)
+    Warning = Color3.fromRGB(215, 175, 0),
+    Error = Color3.fromRGB(215, 60, 60)
 }
 
 local function Create(class, props)
@@ -34,6 +37,10 @@ local function Tween(obj, info, props)
     local t = TweenService:Create(obj, info, props)
     t:Play()
     return t
+end
+
+local function GetTextSize(text, font, size, width)
+    return TextService:GetTextSize(text, size, font, Vector2.new(width, 999999))
 end
 
 local function MakeDraggable(trigger, obj)
@@ -65,8 +72,9 @@ end
 
 function Library:Window(options)
     local Name = options.Name or "Library"
+    
     local ScreenGui = Create("ScreenGui", {
-        Name = "ZyphClassic",
+        Name = "ZyphClassic_" .. tostring(math.random(1000, 9999)),
         Parent = LocalPlayer:WaitForChild("PlayerGui"),
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -80,7 +88,8 @@ function Library:Window(options)
         BorderColor3 = Theme.Border,
         Position = UDim2.new(0.5, -300, 0.5, -200),
         Size = UDim2.new(0, 600, 0, 400),
-        ClipsDescendants = true
+        ClipsDescendants = true,
+        Visible = true
     })
     
     local Header = Create("Frame", {
@@ -112,7 +121,6 @@ function Library:Window(options)
         TextColor3 = Theme.Text,
         TextSize = 14
     })
-    CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
     
     local MiniBtn = Create("TextButton", {
         Parent = Header,
@@ -186,9 +194,26 @@ function Library:Window(options)
         ZIndex = 10
     })
     
+    local NotifHolder = Create("Frame", {
+        Parent = ScreenGui,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -220, 1, -20),
+        Size = UDim2.new(0, 200, 1, 0),
+        AnchorPoint = Vector2.new(0, 1)
+    })
+    Create("UIListLayout", {Parent = NotifHolder, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Bottom, Padding = UDim.new(0, 5)})
+    
     local Resizing = false
-    ResizeGrip.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Resizing = true end end)
-    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then Resizing = false end end)
+    ResizeGrip.InputBegan:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+            Resizing = true 
+        end 
+    end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then 
+            Resizing = false 
+        end 
+    end)
     UserInputService.InputChanged:Connect(function(i)
         if Resizing and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             local pos = UserInputService:GetMouseLocation()
@@ -218,32 +243,16 @@ function Library:Window(options)
         end
     end)
     
-    local NotifHolder = Create("Frame", {
-        Parent = ScreenGui,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -220, 1, -20),
-        Size = UDim2.new(0, 200, 1, 0),
-        AnchorPoint = Vector2.new(0, 1)
-    })
-    Create("UIListLayout", {Parent = NotifHolder, SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Bottom, Padding = UDim.new(0, 5)})
+    CloseBtn.MouseButton1Click:Connect(function() 
+        ScreenGui:Destroy() 
+    end)
     
     local WindowAPI = {}
     local CurrentTab = nil
     
-    local function UpdateSearch(text)
-        if not CurrentTab then return end
-        for _, obj in pairs(CurrentTab.Page:GetChildren()) do
-            if obj:IsA("Frame") and obj:FindFirstChild("STag") then
-                if string.find(string.lower(obj.STag.Value), string.lower(text)) then
-                    obj.Visible = true
-                else
-                    obj.Visible = false
-                end
-            end
-        end
-        CurrentTab.Page.CanvasSize = UDim2.new(0, 0, 0, CurrentTab.Layout.AbsoluteContentSize.Y + 20)
+    function WindowAPI:Toggle()
+        ScreenGui.Enabled = not ScreenGui.Enabled
     end
-    SearchBox:GetPropertyChangedSignal("Text"):Connect(function() UpdateSearch(SearchBox.Text) end)
     
     function WindowAPI:Notification(title, text, duration)
         local NF = Create("Frame", {
@@ -269,6 +278,21 @@ function Library:Window(options)
             NF:Destroy()
         end)
     end
+    
+    local function UpdateSearch(text)
+        if not CurrentTab then return end
+        for _, obj in pairs(CurrentTab.Page:GetChildren()) do
+            if obj:IsA("Frame") and obj:FindFirstChild("STag") then
+                if string.find(string.lower(obj.STag.Value), string.lower(text)) then
+                    obj.Visible = true
+                else
+                    obj.Visible = false
+                end
+            end
+        end
+        CurrentTab.Page.CanvasSize = UDim2.new(0, 0, 0, CurrentTab.Layout.AbsoluteContentSize.Y + 20)
+    end
+    SearchBox:GetPropertyChangedSignal("Text"):Connect(function() UpdateSearch(SearchBox.Text) end)
     
     function WindowAPI:Tab(name)
         local Page = Create("ScrollingFrame", {
@@ -327,11 +351,11 @@ function Library:Window(options)
         end
         
         function Elements:Warning(text)
-            local F = Create("Frame", {Parent = Page, BackgroundColor3 = Color3.fromRGB(60, 40, 40), Size = UDim2.new(1, 0, 0, 25), BorderSizePixel = 1, BorderColor3 = Theme.Warning})
+            local F = Create("Frame", {Parent = Page, BackgroundColor3 = Color3.fromRGB(60, 40, 40), Size = UDim2.new(1, 0, 0, 30), BorderSizePixel = 1, BorderColor3 = Theme.Error})
             Elements:AddSTag(F, text)
             Create("TextLabel", {
-                Parent = F, BackgroundTransparency = 1, Size = UDim2.new(1, -10, 1, 0), Position = UDim2.new(0, 5, 0, 0), Font = Enum.Font.SourceSansBold,
-                Text = "⚠ " .. text, TextColor3 = Theme.Warning, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left
+                Parent = F, BackgroundTransparency = 1, Size = UDim2.new(1, -10, 1, 0), Position = UDim2.new(0, 10, 0, 0), Font = Enum.Font.SourceSansBold,
+                Text = "WARNING: " .. text, TextColor3 = Theme.Error, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left
             })
         end
         
@@ -542,16 +566,10 @@ function Library:Window(options)
         return Elements
     end
     
-    UserInputService.InputBegan:Connect(function(i, gp)
-        if not gp and i.KeyCode == Enum.KeyCode.RightControl then
-            ScreenGui.Enabled = not ScreenGui.Enabled
-        end
-    end)
-    
     Main.Visible = true
     Main.Size = UDim2.new(0, 0, 0, 0)
     Tween(Main, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 600, 0, 400)})
-    WindowAPI:Notification("System", "Library Loaded", 3)
+    WindowAPI:Notification("System", "Library Loaded Successfully", 3)
     
     return WindowAPI
 end
