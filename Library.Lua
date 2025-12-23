@@ -50,15 +50,22 @@ function Library:Window(text)
 	ScreenGui.Name = "ClassicLib"
 	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	
+	--// FEATURE: Persist after death
+	ScreenGui.ResetOnSpawn = false
 
 	local MainFrame = Instance.new("Frame")
 	MainFrame.Name = "MainFrame"
 	MainFrame.Parent = ScreenGui
 	MainFrame.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
 	MainFrame.BorderSizePixel = 0
-	MainFrame.Position = UDim2.new(0.5, -443, 0.5, -152)
-	MainFrame.Size = UDim2.new(0, 500, 0, 350)
+	MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175) -- Centered based on size
+	MainFrame.Size = UDim2.new(0, 0, 0, 0) -- Start size 0 for animation
 	MainFrame.ClipsDescendants = true
+    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Anchor point center for better scaling animation
+
+    --// FEATURE: Intro Animation
+    TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 500, 0, 350)}):Play()
 
 	local TitleBar = Instance.new("Frame")
 	TitleBar.Name = "TitleBar"
@@ -135,14 +142,34 @@ function Library:Window(text)
 	UserInputService.InputChanged:Connect(function(input)
 		if Resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
 			local MouseLocation = UserInputService:GetMouseLocation()
+            -- Adjust resize logic for AnchorPoint 0.5, 0.5
 			local RelativeX = MouseLocation.X - MainFrame.AbsolutePosition.X
 			local RelativeY = MouseLocation.Y - MainFrame.AbsolutePosition.Y - 36 
 			
-			if RelativeX > 300 and RelativeY > 200 then
-				MainFrame.Size = UDim2.new(0, RelativeX, 0, RelativeY)
-			end
+            -- Simple size clamp
+            local newX = math.max(300, MouseLocation.X - MainFrame.AbsolutePosition.X)
+            local newY = math.max(200, MouseLocation.Y - MainFrame.AbsolutePosition.Y)
+
+			MainFrame.Size = UDim2.new(0, newX, 0, newY)
 		end
 	end)
+
+    --// FEATURE: Toggle Keybind (Right Control)
+    local uiToggled = true
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+            uiToggled = not uiToggled
+            if uiToggled then
+                MainFrame.Visible = true
+                TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 500, 0, 350)}):Play()
+            else
+                local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+                closeTween:Play()
+                closeTween.Completed:Wait()
+                if not uiToggled then MainFrame.Visible = false end
+            end
+        end
+    end)
 
 	local NotificationContainer = Instance.new("Frame")
 	NotificationContainer.Name = "Notifications"
@@ -261,14 +288,12 @@ function Library:Window(text)
 				CurrentTab.Visible = false
 				local OldBtn = Sidebar:FindFirstChild(string.split(CurrentTab.Name, "_")[1].."_Btn")
 				if OldBtn then
-					OldBtn.BackgroundColor3 = Color3.fromRGB(54, 54, 54)
-					OldBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    TweenService:Create(OldBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(54, 54, 54), TextColor3 = Color3.fromRGB(200, 200, 200)}):Play()
 				end
 			end
 			CurrentTab = TabFrame
 			TabFrame.Visible = true
-			TabButton.BackgroundColor3 = Color3.fromRGB(46, 46, 46)
-			TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TweenService:Create(TabButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(46, 46, 46), TextColor3 = Color3.fromRGB(255, 255, 255)}):Play()
 		end)
 
 		local TabFunctions = {}
