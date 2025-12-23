@@ -1164,15 +1164,36 @@ function Library:Window(options)
             })
             Utility:Create("UICorner", {CornerRadius = UDim.new(1,0), Parent = SatCursor})
 
-            local HueBar = Utility:Create("ImageButton", {
+            local HueBar = Utility:Create("Frame", {
                 Parent = PickerPopup,
                 Position = UDim2.new(0, 160, 0, 10),
                 Size = UDim2.new(0, 10, 0, 120),
-                Image = "rbxassetid://5028857472",
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 BorderColor3 = ThemeManager.Colors.Outline,
                 BorderSizePixel = 1,
                 ZIndex = 201
+            })
+            
+            local HueGradient = Utility:Create("UIGradient", {
+                Parent = HueBar,
+                Rotation = 90,
+                Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+                    ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 0, 255)),
+                    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 0, 255)),
+                    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
+                    ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 255, 0)),
+                    ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 255, 0)),
+                    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0))
+                }
+            })
+
+            local HueTrigger = Utility:Create("TextButton", {
+                Parent = HueBar,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1,0,1,0),
+                Text = "",
+                ZIndex = 205
             })
 
             local HueCursor = Utility:Create("Frame", {
@@ -1206,7 +1227,7 @@ function Library:Window(options)
 
             local DraggingHue, DraggingSat = false, false
 
-            HueBar.InputBegan:Connect(function(input)
+            HueTrigger.InputBegan:Connect(function(input)
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then
                     DraggingHue = true
                 end
@@ -1333,4 +1354,49 @@ function Library:Window(options)
     return WindowAPI
 end
 
-return Library
+local Window = Library:Window({
+    Name = "Zyph Hub",
+    KeySystem = false 
+})
+
+local Main = Window:Tab("Main")
+local Visuals = Window:Tab("Visuals")
+local Settings = Window:Tab("Settings")
+
+Main:Label("Movement")
+Main:Warning("Risk of ban if used blatantly")
+
+Main:Toggle("Infinite Jump", false, function(v)
+    _G.InfJump = v
+    if v then
+        Window:Notification("Cheat", "Infinite Jump Enabled", 2)
+    end
+end)
+
+Main:Slider("WalkSpeed", 16, 250, 16, function(v)
+    if game.Players.LocalPlayer.Character then
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v
+    end
+end)
+
+Main:Button("Reset", function()
+    game.Players.LocalPlayer.Character:BreakJoints()
+end)
+
+Visuals:Dropdown("ESP Mode", {"Box", "Tracers", "Chams"}, function(v)
+    print(v)
+end)
+
+Visuals:Colorpicker("ESP Color", Color3.fromRGB(255, 0, 0), function(c)
+    print(c)
+end)
+
+Settings:Keybind("Menu Toggle", Enum.KeyCode.RightControl, function()
+    print("Toggle pressed")
+end)
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if _G.InfJump and game.Players.LocalPlayer.Character then
+        game.Players.LocalPlayer.Character.Humanoid:ChangeState("Jumping")
+    end
+end)
